@@ -44,6 +44,8 @@ module Fluent::Plugin
     config_param :partial_cri_logtag_key, :string, default: nil
     desc "The key name that is referred to detect stream name on cri log"
     config_param :partial_cri_stream_key, :string, default: "stream"
+    desc "The value to use to limit no. of lines that we can concatenate. if nil, all partial logs are concatenated"
+    config_param :partial_cri_max_log_lines, :integer, default: 1
 
     class TimeoutError < StandardError
     end
@@ -283,7 +285,7 @@ module Fluent::Plugin
     def process_partial_cri(stream_identity, tag, time, record)
       new_es = Fluent::MultiEventStream.new
       @buffer[stream_identity] << [tag, time, record]
-      if record[@partial_cri_logtag_key].split(@partial_logtag_delimiter)[0] == @partial_logtag_full
+      if record[@partial_cri_logtag_key].split(@partial_logtag_delimiter)[0] == @partial_logtag_full && @buffer[stream_identity].size >= @partial_cri_max_log_lines
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_cri_logtag_key)
